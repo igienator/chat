@@ -1,0 +1,56 @@
+openapi: 3.0.3
+info:
+  title: Room Chat Signaling API
+  version: 1.0.0
+  description: |
+    Minimal HTTP API for room creation and a WebSocket upgrade endpoint used for peer-to-peer signaling. The server never inspects or modifies message payloads; frames are opaque JSON Envelopes.
+servers:
+  - url: http://localhost:8080
+paths:
+  /room:
+    post:
+      summary: Create a new room
+      description: Issues a fresh room ID. The room exists in memory and will expire if unused.
+      responses:
+        '200':
+          description: Room created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  room_id:
+                    type: string
+                    description: Generated room identifier
+                required: [room_id]
+        '405':
+          description: Method not allowed
+  /ws:
+    get:
+      summary: WebSocket upgrade for joining a room
+      description: |
+        Upgrades the HTTP connection to a WebSocket. The `room` query parameter is required.
+        Once upgraded, peers exchange JSON Envelopes over the WebSocket. The server relays frames between two peers and does not decrypt or inspect payload contents.
+      parameters:
+        - name: room
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Room identifier returned from POST /room
+      responses:
+        '101':
+          description: Switching Protocols (WebSocket established)
+components:
+  schemas:
+    Envelope:
+      type: object
+      description: Server-opaque message envelope exchanged over the WebSocket
+      properties:
+        type:
+          type: string
+          description: Frame type (e.g., "pubkey", "message", "leave", "peer-joined", "peer-left", "error")
+        payload:
+          type: string
+          description: Opaque payload (e.g., RSA public key, AES-GCM ciphertext, or control signal)
+      required: [type, payload]
